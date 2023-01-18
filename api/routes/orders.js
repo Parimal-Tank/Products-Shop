@@ -1,159 +1,25 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const mongoose = require("mongoose");
+const checkAuth = require('../middleware/check-auth')
 
-// models
-const Order = require("../models/order");
-const Product = require("../models/product");
+
+const OrderController =  require('../controllers/orders');
 
 // Get All Orders
-router.get("/", (req, res, next) => {
-  Order.find()
-    .select("product quantity _id")   // only selected responce product , quantity , _id
-    .populate('product')  // Order with product details
-    .exec()       // exec() method used for match a string
-    .then((result) => {
-      res.status(200).json({
-        // count Number of Orders
-        count: result.length,
-
-        // Returns The Orders Filed
-        orders: result.map((result) => {
-          return {
-            _id: result._id,
-            product: result.product,
-            quantity: result.quantity,
-            request: {
-              type: "GET",
-              url: "http://localhost:3000/orders/" + result._id,
-            },
-          };
-        }),
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err });
-    });
-});
+router.get("/",checkAuth , OrderController.orders_get_all);
 
 // Add Orders
-router.post("/", (req, res, next) => {
-  
-   // find a valid product Id
-  Product.findOne({ _id: req.body.productId })
-    .then((product) => {
-     
-      // if product not found return 404
-      if (!product) {
-        return res.status(404).json({
-          message: "Product not found",
-        });
-      }
-
-      //creating a Order
-      const order = new Order({
-        _id: mongoose.Types.ObjectId(),
-        quantity: req.body.quantity,
-        product: req.body.productId,
-      });
-      return order.save();
-    })
-    .then((result) => {
-
-    //   console.log(result);
-
-      res.status(201).json({
-        message: "Order stored",
-        createdOrder: {
-          _id: result._id,
-          product: result.product,
-          quantity: result.quantity,
-        },
-        request: {
-          // information about the request
-          type: "GET",
-          url: "http://localhost:3000/orders/" + result._id,
-        },
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({
-        error: err,
-      });
-    });
-});
+router.post("/",  checkAuth , OrderController.orders_create_order);
 
 // Update Order
 
-router.patch("/:orderId", function (req, res, next) {
-
-    const id = req.params.orderId;
-    
-    // Set id Default Attribute of Mongodb to set Updated Value
-    Order.updateOne({ _id : id} , { $set : req.body})
-    .exec()
-    .then(result =>{
-      console.log(result);
-      res.status(200).json(result);
-    })
-    .catch(err => {
-      console.log(err);
-      res.status(500).json({
-         error : err
-      })
-    })
-    
- });
-
+router.patch("/:orderId",  checkAuth , OrderController.orders_update);
 
 // get Order By ID
-router.get("/:orderId", (req, res, next) => {
-  const id = req.params.orderId;
-
-  Order.findById({ _id: id })
-    .exec()
-    .populate('product')  // Order with product details
-    .then((order) => {
-      res.status(200).json({
-        order: order,
-        result: {
-          type: "GET",
-          url: "localhost:3000/orders",
-        },
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({ error: err });
-    });
-});
+router.get("/:orderId",  checkAuth, OrderController.orders_get_by_id);
 
 
 // Delete Product By Id
-router.delete("/:orderId", function (req, res, next) {
-  const id = req.params.orderId;
-
-  Order.deleteOne({ _id: id })
-    .then((order) => {
-      if (!order) {
-        res.status(404).json({
-          message: "Order Not Found!",
-        });
-      }
-
-      res.status(200).json({
-        message: "Order Deleted",
-        request: {
-          type: "POST",
-          url: "http://localhost:3000/orders",
-          body: { productId: "ID", quantity: "NUmber" },
-        },
-      });
-    })
-    .catch((err) => {
-      res.status(500).json({
-        error: err,
-      });
-    });
-});
+router.delete("/:orderId",  checkAuth , OrderController.orders_deletes);
 
 module.exports = router;
